@@ -11,7 +11,7 @@ public class EcbEncoder extends CbcEcbEncoder {
         return Encode(passwordKey, plainText, TRANSFORMATION, false, SALT_SIZE);
     }
 
-    public static String Decode(String passwordKey, String fullCipherDataString) {
-        return Decode(passwordKey, fullCipherDataString, TRANSFORMATION, false, SALT_SIZE);
+    public static String Decode(String passwordKey, String cipherText) {
+        return Decode(passwordKey, cipherText, TRANSFORMATION, false, SALT_SIZE);
     }
 }

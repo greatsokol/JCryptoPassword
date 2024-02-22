@@ -1,95 +1,56 @@
 package org.example;
 
-import javax.crypto.Cipher;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.PBEKeySpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
-import java.security.spec.KeySpec;
 import java.util.Base64;
 
-public abstract class CbcEcbEncoder {
-    private static final String SKF_ALGORITHM = "PBKDF2WithHmacSHA1";
-    private static final String SK_ALGORITHM = "AES";
+public class CbcEcbEncoder extends CbcEcbBaseEncoder {
     private static final int IVBYTES_SIZE = 16;
-    private static final int KEY_LENGTH = 256;
-    private static final int ITERATION_COUNT = 1000000;
 
     protected CbcEcbEncoder() {
     }
 
-    protected static String Encode(String passwordKey, String plainText, String transformationAlg, boolean withIV, int saltSize) {
-        try {
-            SecureRandom random = new SecureRandom();
-            byte[] salt = new byte[saltSize];
-            byte[] ivBytes = new byte[IVBYTES_SIZE];
-            random.nextBytes(salt);
+    protected static String Encode(String passwordKey,
+                                   String plainText,
+                                   String transformationAlg,
+                                   boolean withIV,
+                                   int saltSize) {
+        int ivSize = withIV ? IVBYTES_SIZE : 0;
+        SecureRandom random = new SecureRandom();
+        byte[] salt = new byte[saltSize];
+        byte[] ivBytes = withIV ? new byte[IVBYTES_SIZE] : null;
+        random.nextBytes(salt);
+        CipherData cipherData = Encode(
+                passwordKey,
+                transformationAlg,
+                new CipherData(plainText.getBytes(StandardCharsets.UTF_8), ivBytes, salt)
+        );
+        if (cipherData == null) return null;
 
-            KeySpec spec = new PBEKeySpec(passwordKey.toCharArray(), salt, ITERATION_COUNT, KEY_LENGTH); // AES-256
-            Cipher cipher = Cipher.getInstance(transformationAlg);
-            if (withIV) {
-                random.nextBytes(ivBytes);
-                cipher.init(Cipher.ENCRYPT_MODE,
-                        new SecretKeySpec(SecretKeyFactory.getInstance(SKF_ALGORITHM).generateSecret(spec).getEncoded(), SK_ALGORITHM),
-                        new IvParameterSpec(ivBytes));
-            } else {
-                cipher.init(Cipher.ENCRYPT_MODE,
-                        new SecretKeySpec(SecretKeyFactory.getInstance(SKF_ALGORITHM).generateSecret(spec).getEncoded(), SK_ALGORITHM));
-            }
-            byte[] cipherText = cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
+        byte[] cipherTextWithSaltAndVector = new byte[cipherData.cipherText.length + ivSize + saltSize];
+        if (withIV) System.arraycopy(ivBytes, 0, cipherTextWithSaltAndVector, 0, IVBYTES_SIZE);
+        System.arraycopy(salt, 0, cipherTextWithSaltAndVector, ivSize, saltSize);
+        System.arraycopy(cipherData.cipherText, 0, cipherTextWithSaltAndVector, ivSize + saltSize, cipherData.cipherText.length);
 
-            byte[] fullCipherData;
-            if (withIV) {
-                fullCipherData = new byte[cipherText.length + IVBYTES_SIZE + saltSize];
-                System.arraycopy(ivBytes, 0, fullCipherData, 0, IVBYTES_SIZE);
-                System.arraycopy(salt, 0, fullCipherData, IVBYTES_SIZE, saltSize);
-                System.arraycopy(cipherText, 0, fullCipherData, IVBYTES_SIZE + saltSize, cipherText.length);
-            } else {
-                fullCipherData = new byte[cipherText.length + saltSize];
-                System.arraycopy(salt, 0, fullCipherData, 0, saltSize);
-                System.arraycopy(cipherText, 0, fullCipherData, saltSize, cipherText.length);
-            }
-
-            return Base64.getEncoder().encodeToString(fullCipherData);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return null;
-        }
+        return Base64.getEncoder().encodeToString(cipherTextWithSaltAndVector);
     }
 
-    protected static String Decode(String passwordKey, String fullCipherDataString, String transformationAlg, boolean withIV, int saltSize) {
-        try {
-            byte[] fullCipherData = Base64.getDecoder().decode(fullCipherDataString);
-            byte[] salt = new byte[saltSize];
-            byte[] ivBytes = new byte[IVBYTES_SIZE];
-            byte[] cipherText;
-            if (withIV) {
-                cipherText = new byte[fullCipherData.length - (IVBYTES_SIZE + saltSize)];
-                System.arraycopy(fullCipherData, 0, ivBytes, 0, IVBYTES_SIZE);
-                System.arraycopy(fullCipherData, IVBYTES_SIZE, salt, 0, saltSize);
-                System.arraycopy(fullCipherData, IVBYTES_SIZE + saltSize, cipherText, 0, fullCipherData.length - (IVBYTES_SIZE + saltSize));
-            } else {
-                cipherText = new byte[fullCipherData.length - saltSize];
-                System.arraycopy(fullCipherData, 0, salt, 0, saltSize);
-                System.arraycopy(fullCipherData, saltSize, cipherText, 0, fullCipherData.length - saltSize);
-            }
+    protected static String Decode(String passwordKey,
+                                   String cipherTextWithSaltAndVector,
+                                   String transformationAlg,
+                                   boolean withIV,
+                                   int saltSize) {
+        int ivSize = withIV ? IVBYTES_SIZE : 0;
+        byte[] fullCipherData = Base64.getDecoder().decode(cipherTextWithSaltAndVector);
+        byte[] salt = new byte[saltSize];
+        byte[] ivBytes = new byte[IVBYTES_SIZE];
+        byte[] cipherText = new byte[fullCipherData.length - (ivSize + saltSize)];
+        if (withIV) System.arraycopy(fullCipherData, 0, ivBytes, 0, IVBYTES_SIZE);
+        System.arraycopy(fullCipherData, ivSize, salt, 0, saltSize);
+        System.arraycopy(fullCipherData, ivSize + saltSize, cipherText, 0, fullCipherData.length - (ivSize + saltSize));
 
-            KeySpec spec = new PBEKeySpec(passwordKey.toCharArray(), salt, ITERATION_COUNT, KEY_LENGTH); // AES-256
-            SecretKeyFactory f = SecretKeyFactory.getInstance(SKF_ALGORITHM);
-            byte[] key = f.generateSecret(spec).getEncoded();
-            SecretKeySpec keySpec = new SecretKeySpec(key, SK_ALGORITHM);
-            Cipher cipher = Cipher.getInstance(transformationAlg);
-            if (withIV) {
-                cipher.init(Cipher.DECRYPT_MODE, keySpec, new IvParameterSpec(ivBytes));
-            } else {
-                cipher.init(Cipher.DECRYPT_MODE, keySpec);
-            }
-            return new String(cipher.doFinal(cipherText), StandardCharsets.UTF_8);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return null;
-        }
+        byte[] plainBytes = Decode(passwordKey, transformationAlg, new CipherData(cipherText, withIV ? ivBytes : null, salt));
+        if (plainBytes == null) return null;
+        return new String(plainBytes, StandardCharsets.UTF_8);
     }
 }
