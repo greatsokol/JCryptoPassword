@@ -1,14 +1,11 @@
 package org.example;
 
-import javax.crypto.Cipher;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.io.*;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-public class App
-{
+public class App {
     private static String getPathToFileInApplicationDir(String fileName) {
         Path path = null;
         try {
@@ -19,7 +16,19 @@ public class App
         return path == null ? null : path.toString();
     }
 
-    private static void LoadPasswordFromKeystoreFile(){
+    private static String loadKeyFromFile(String pathToKeyFile) {
+        try {
+            try (InputStream keyFileData = Files.newInputStream(Paths.get(pathToKeyFile))) {
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(keyFileData));
+                return bufferedReader.readLine();
+            }
+        } catch (IOException ex) {
+            System.out.println("File not loaded " + ex.getMessage());
+            return null;
+        }
+    }
+
+    private static void LoadPasswordFromKeystoreFile() {
         String path = getPathToFileInApplicationDir(".keystore");
 
         ///***
@@ -31,29 +40,33 @@ public class App
             String storedPassword = PasswordLoader.getPassword(path, "PKCS12", keyStoreAndItemPassword,
                     "databasekey", keyStoreAndItemPassword
             );
-            System.out.println(storedPassword);
+            System.out.format("Loaded from keystore file (%s): %s\n", path, storedPassword);
         }
     }
 
 
-    private static void CBCEncodeAndDecode(){
-        String pathToKeyFile = getPathToFileInApplicationDir(".pass");
-        String plainText = "password11";
-        CBCEncoderAndDecoder.EncodedData encodedData = CBCEncoderAndDecoder.Encode(pathToKeyFile, Cipher.ENCRYPT_MODE, plainText.getBytes(StandardCharsets.UTF_8));
-        String decodedPlainText = CBCEncoderAndDecoder.Decode(pathToKeyFile, Cipher.DECRYPT_MODE, encodedData);
-        System.out.println(decodedPlainText);
+    private static void CBCEncodeAndDecode() {
+        String passwordKey = loadKeyFromFile(getPathToFileInApplicationDir(".pass"));
+        if (passwordKey == null) return;
+
+        String cipher = CbcEncoder.Encode(passwordKey, "password");
+        String plainText = CbcEncoder.Decode(passwordKey, cipher);
+
+        System.out.format("%s. Plain: %s, Cipher: %s\n", CbcEncoder.class, plainText, cipher);
     }
 
-    private static void ECBEncodeAndDecode(){
-        String pathToKeyFile = getPathToFileInApplicationDir(".pass");
-        String plainText = "password22";
-        byte[] encoded = ECBEncoderAndDecoder.Encode(pathToKeyFile, plainText.getBytes(StandardCharsets.UTF_8));
-        String decodedPlainText = ECBEncoderAndDecoder.Decode(pathToKeyFile, encoded);
-        System.out.println(decodedPlainText);
+    private static void ECBEncodeAndDecode() {
+        String passwordKey = loadKeyFromFile(getPathToFileInApplicationDir(".pass"));
+        if (passwordKey == null) return;
+
+        String cipher = EcbEncoder.Encode(passwordKey, "password");
+        String plainText = EcbEncoder.Decode(passwordKey, cipher);
+
+        System.out.format("%s. Plain: %s, Cipher: %s\n", EcbEncoder.class, plainText, cipher);
     }
 
 
-    public static void main( String[] args ){
+    public static void main(String[] args) {
         LoadPasswordFromKeystoreFile();
         CBCEncodeAndDecode();
         ECBEncodeAndDecode();

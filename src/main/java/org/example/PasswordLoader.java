@@ -14,12 +14,12 @@ public class PasswordLoader {
     }
 
     public static String getPassword(String keyStorePath,
-                              String keyStoreType,
-                              String keyStorePassword,
-                              String passwordAlias,
-                              String passwordPassword
-                              ) {
-        try{
+                                     String keyStoreType,
+                                     String keyStorePassword,
+                                     String passwordAlias,
+                                     String passwordPassword
+    ) {
+        try {
             InputStream keyStoreData = Files.newInputStream(Paths.get(keyStorePath));
             KeyStore keyStore = KeyStore.getInstance(keyStoreType);
             keyStore.load(keyStoreData, keyStorePassword.toCharArray());
@@ -38,7 +38,7 @@ public class PasswordLoader {
 
             return new String(keySpec.getPassword());
         } catch (Exception ex) {
-            System.out.println(ex.getMessage());
+            ex.printStackTrace();
             return null;
         }
     }
