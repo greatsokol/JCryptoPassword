@@ -14,6 +14,8 @@ public abstract class CbcEcbEncoder {
     private static final String SKF_ALGORITHM = "PBKDF2WithHmacSHA1";
     private static final String SK_ALGORITHM = "AES";
     private static final int IVBYTES_SIZE = 16;
+    private static final int KEY_LENGTH = 256;
+    private static final int ITERATION_COUNT = 1000000;
 
     protected CbcEcbEncoder() {
     }
@@ -25,7 +27,7 @@ public abstract class CbcEcbEncoder {
             byte[] ivBytes = new byte[IVBYTES_SIZE];
             random.nextBytes(salt);
 
-            KeySpec spec = new PBEKeySpec(passwordKey.toCharArray(), salt, 1000000, 256); // AES-256
+            KeySpec spec = new PBEKeySpec(passwordKey.toCharArray(), salt, ITERATION_COUNT, KEY_LENGTH); // AES-256
             Cipher cipher = Cipher.getInstance(transformationAlg);
             if (withIV) {
                 random.nextBytes(ivBytes);
@@ -74,7 +76,7 @@ public abstract class CbcEcbEncoder {
                 System.arraycopy(fullCipherData, saltSize, cipherText, 0, fullCipherData.length - saltSize);
             }
 
-            KeySpec spec = new PBEKeySpec(passwordKey.toCharArray(), salt, 1000000, 256); // AES-256
+            KeySpec spec = new PBEKeySpec(passwordKey.toCharArray(), salt, ITERATION_COUNT, KEY_LENGTH); // AES-256
             SecretKeyFactory f = SecretKeyFactory.getInstance(SKF_ALGORITHM);
             byte[] key = f.generateSecret(spec).getEncoded();
             SecretKeySpec keySpec = new SecretKeySpec(key, SK_ALGORITHM);
