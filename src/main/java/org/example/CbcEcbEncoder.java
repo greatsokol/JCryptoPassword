@@ -1,5 +1,6 @@
 package org.example;
 
+import javax.crypto.Cipher;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
@@ -12,7 +13,7 @@ public class CbcEcbEncoder extends CbcEcbBaseEncoder {
 
     protected static String Encode(String passwordKey,
                                    String plainText,
-                                   String transformationAlg,
+                                   String transformation,
                                    boolean withIV,
                                    int saltSize) {
         int ivSize = withIV ? IVBYTES_SIZE : 0;
@@ -20,9 +21,10 @@ public class CbcEcbEncoder extends CbcEcbBaseEncoder {
         byte[] salt = new byte[saltSize];
         byte[] ivBytes = withIV ? new byte[IVBYTES_SIZE] : null;
         random.nextBytes(salt);
-        CipherData cipherData = Encode(
+        CipherData cipherData = EncodeDecode(
+                Cipher.ENCRYPT_MODE,
                 passwordKey,
-                transformationAlg,
+                transformation,
                 new CipherData(plainText.getBytes(StandardCharsets.UTF_8), ivBytes, salt)
         );
         if (cipherData == null) return null;
@@ -37,7 +39,7 @@ public class CbcEcbEncoder extends CbcEcbBaseEncoder {
 
     protected static String Decode(String passwordKey,
                                    String cipherTextWithSaltAndVector,
-                                   String transformationAlg,
+                                   String transformation,
                                    boolean withIV,
                                    int saltSize) {
         int ivSize = withIV ? IVBYTES_SIZE : 0;
@@ -49,8 +51,8 @@ public class CbcEcbEncoder extends CbcEcbBaseEncoder {
         System.arraycopy(fullCipherData, ivSize, salt, 0, saltSize);
         System.arraycopy(fullCipherData, ivSize + saltSize, cipherText, 0, fullCipherData.length - (ivSize + saltSize));
 
-        byte[] plainBytes = Decode(passwordKey, transformationAlg, new CipherData(cipherText, withIV ? ivBytes : null, salt));
-        if (plainBytes == null) return null;
-        return new String(plainBytes, StandardCharsets.UTF_8);
+        CipherData cipherData = EncodeDecode(Cipher.DECRYPT_MODE, passwordKey, transformation, new CipherData(cipherText, withIV ? ivBytes : null, salt));
+        if (cipherData == null) return null;
+        return new String(cipherData.cipherText, StandardCharsets.UTF_8);
     }
 }

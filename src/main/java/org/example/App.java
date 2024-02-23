@@ -1,5 +1,6 @@
 package org.example;
 
+import javax.crypto.Cipher;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -65,10 +66,23 @@ public class App {
         System.out.format("%s. Plain: %s, Cipher: %s\n", EcbEncoder.class, plainText, cipher);
     }
 
+    private static void SimpleEncodeAndDecode() {
+        String passwordKey = loadKeyFromFile(getPathToFileInApplicationDir(".pass"));
+        if (passwordKey == null) return;
+
+        String salt = "saltsalt";
+        String iv = "vectorvectorhere";
+
+        String cipher = CbcSimpleEncoder.EncodeDecode(Cipher.ENCRYPT_MODE, passwordKey, salt, iv, "password");
+        String plainText = CbcSimpleEncoder.EncodeDecode(Cipher.DECRYPT_MODE, passwordKey, salt, iv, cipher);
+
+        System.out.format("%s. Plain: %s, Cipher: %s\n", CbcSimpleEncoder.class, plainText, cipher);
+    }
 
     public static void main(String[] args) {
         LoadPasswordFromKeystoreFile();
         CBCEncodeAndDecode();
         ECBEncodeAndDecode();
+        SimpleEncodeAndDecode();
     }
 }
